@@ -1,76 +1,72 @@
-# StegoDocx UI
+# StegoDocx Steganographic Methods
 
-A simple web front end for StegoDocx. `index.html` is self-contained, with no build step and no CDN.
+StegoDocx hides a secret text message inside a Word document (.docx) without visibly changing it. Each method has its own embedding and extraction procedure, and extraction needs only the stego document.
 
-## Files
-| File | What it is |
+## Proposed Method: Block-Based Steganography
+
+The cover text's visible characters are split into blocks of 96 characters. The blocks alternate between two hiding channels:
+
+| Block | Channel | Bits per block |
+|---|---|---|
+| Odd (1st, 3rd, …) | RGB-LSB: the least significant bit of each character's red, green and blue font colour values | 288 (3 per character) |
+| Even (2nd, 4th, …) | Zero-width: a U+200B zero-width space after a character means `1`, no marker means `0` | 96 (1 per character) |
+
+The colour changes are at most one step per channel, so they can't be seen. The zero-width characters take up no space on the page.
+
+### Preprocessing
+
+1. **UTF-8 encoding.** The secret is converted to UTF-8 bits, so any language or symbol can be hidden.
+2. **Length header.** A 32-bit header with the message length in bytes is placed in front.
+3. **Hamming(8,4).** Every 4 bits become an 8-bit codeword. This corrects single-bit errors and detects double-bit errors in each codeword.
+
+### Synchronized Variant
+
+The synchronized variant adds a framing layer after Hamming encoding, so extraction can recover from edits made to the stego document:
+
+| Field | Size |
 |---|---|
-| `index.html` | The whole UI: Embed and Extract tabs; follows the system light/dark setting |
-| `bridge.py`  | Web server (standard-library `http.server`) and pywebview glue; connects the UI to `algorithms/` |
-| `main.py`    | Starts the website |
-| `algorithms/`, `processing/` | The steganography methods: preprocessing, embedding, extraction |
+| Sync marker (`0xA5`) | 8 bits |
+| Frame index | 8 bits |
+| Hamming-coded data, interleaved | 64 bits |
+| CRC-16 checksum | 16 bits |
 
-## Methods
-Every method runs its own `embed_docx` / `extract_docx` from `algorithms/`:
+Interleaving spreads neighbouring bits across different codewords, so a burst of errors hits each codeword only once and Hamming can still correct it. When text has been inserted or deleted, extraction looks for the sync marker at nearby offsets and accepts a frame only when its CRC-16 matches. That lets it lock back on to the frame grid. Frames that can't be recovered are reported as lost, and the rest of the message is still returned.
 
-| id | Method | Capacity shown |
-|---|---|---|
-| `block_sync` (default) | Proposed · block-based, synchronized | exact |
-| `block` | Proposed · block-based with Hamming(8,4) | exact |
-| `huffman_sync` | Albano (2019) · Huffman + Color, synchronized | estimate (≈) |
-| `huffman` | Albano (2019) · Huffman + Color | estimate (≈) |
-| `invisible_sync` | Mustafa (2020) · Invisible Character, synchronized | exact |
-| `invisible` | Mustafa (2020) · Invisible Character | exact |
-| `block_nohamming`, `block_sync_nohamming` | Ablations without Hamming(8,4) | exact |
+## Albano (2019): Huffman Coding + Font Colour
 
-Huffman capacity depends on how well the message compresses against the cover's code, so the UI shows it as `≈` and does not block the Embed button; the algorithm makes the final check.
+1. A Huffman code is built from the character frequencies of the cover text.
+2. The secret is compressed with that code. Characters missing from the cover are escaped and written as raw 21-bit Unicode values.
+3. The compressed bits are split into 4-bit groups. Each group is written as the font colour of one cover character, using a near-black grey (N, N, N).
 
-Extraction only needs the stego file: the Huffman tree is rebuilt from the stego text and every length travels in the payload.
+The extractor rebuilds the same Huffman tree from the stego text, so the tree never has to be sent. Capacity depends on how well the message compresses against the cover's code, so it can only be estimated before embedding.
 
-## Running
-```bash
-pip install -r requirements.txt     # only python-docx is required
-python main.py                      # http://localhost:5000
-python main.py --host 0.0.0.0 --port 8080   # reachable from other machines
-python main.py --desktop            # desktop window (pip install pywebview)
-```
-`python bridge.py --web` does the same as `python main.py`. `HOST` and `PORT` environment variables are also read.
+**Synchronized variant:** the payload starts with a 24-bit length and a 16-bit CRC of the whole message, and is cut into frames of 0xA5 marker + 8-bit index + 64 data bits + CRC-8.
 
-## Deploying to Render
-The repo includes a `Dockerfile` (Python 3.12 + headless LibreOffice, so the Pages preview works) and a `render.yaml` blueprint.
+## Mustafa (2020): Invisible Characters
 
-1. Push the repo to GitHub or GitLab.
-2. In Render, choose **New → Blueprint** and pick the repo. It reads `render.yaml` and creates the `stegodocx` web service.
-   (Or choose **New → Web Service**, pick the repo and set the runtime to **Docker**.)
-3. Render sets `PORT`. The image sets `HOST=0.0.0.0`, and the health check is `/api/health`.
+The cover's visible characters are split into equal blocks, one block per payload bit. Each block starts with a U+200B marker, and a second marker encodes the bit:
 
-On the free plan the service sleeps when idle, so the first request after a pause takes a while. The first page preview is also slow while LibreOffice sets up its profile.
+| Second marker position | Bit |
+|---|---|
+| 1 character after the block start | `0` |
+| 2 characters after the block start | `1` |
 
-To test the image locally:
-```bash
-docker build -t stegodocx .
-docker run -p 10000:10000 stegodocx   # http://localhost:10000
-```
+The payload is a 4-byte format tag (`MSF1`), a 32-bit length and the UTF-8 secret. The extractor finds the block length by testing every candidate and keeping the one whose header decodes correctly. Each bit needs at least 3 visible characters.
 
-The **Pages** panel shows the stego document's pages (after an embed, or when a stego file is chosen on Extract). It converts the .docx to PDF with LibreOffice and renders each page with PyMuPDF, so it needs LibreOffice plus numpy, Pillow and PyMuPDF; without them only that panel shows "Preview unavailable". The first render takes longer while LibreOffice sets up its profile; at most the first 30 pages are shown.
-The page needs the server: opening `index.html` straight from disk only shows a reminder to start it.
+**Synchronized variant:** the payload uses the tag `MSS1` and is cut into frames of 0xA5 marker + 8-bit index + 64 data bits + CRC-8.
 
-To point the UI at another server, add this before the main script:
-```html
-<script>window.STEGO_CONFIG = { mode: 'http', apiBase: 'http://localhost:5000/api' };</script>
-```
-`mode` can be `auto` (the default), `pywebview` or `http`.
+## Ablation: Proposed Method Without Hamming(8,4)
 
-## API contract (HTTP)
-All bodies are JSON. Files are sent as `{ name, size, data_b64 }`.
+These are the block-based method and its synchronized variant with Hamming(8,4) removed: the 4-bit groups are written as they are. They measure how much the error correction adds in robustness, and what it costs in capacity.
 
-| Endpoint | Body | Returns |
-|---|---|---|
-| `GET /api/health` | | `{ ok: true }` |
-| `GET /api/methods` | | `[{ id, name, description }]` |
-| `POST /api/capacity` | `{ method, cover }` | `{ capacity_bytes, blocks, approximate }` |
-| `POST /api/embed` | `{ method, cover, message }` | `{ file: {name, data_b64}, details, blocks }` |
-| `POST /api/extract` | `{ method, stego }` | `{ message, details }` |
-| `POST /api/pages` | `{ file }` | `{ pages: [png_b64, ...], total }` |
+## Summary
 
-Errors come back as `{ error: "..." }` with HTTP 400.
+| Method | Channel | Error handling | Capacity |
+|---|---|---|---|
+| Proposed, synchronized | RGB-LSB + zero-width blocks | Hamming(8,4), interleaving, CRC-16 frames | Exact |
+| Proposed | RGB-LSB + zero-width blocks | Hamming(8,4) | Exact |
+| Albano (2019), synchronized | 4-bit grey font colour | CRC-8 frames, message CRC-16 | Estimate |
+| Albano (2019) | 4-bit grey font colour | None | Estimate |
+| Mustafa (2020), synchronized | U+200B marker pairs | CRC-8 frames | Exact |
+| Mustafa (2020) | U+200B marker pairs | None | Exact |
+| Ablation, with or without sync | RGB-LSB + zero-width blocks | None, or CRC-16 frames | Exact |
