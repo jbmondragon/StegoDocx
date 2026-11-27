@@ -1,0 +1,10 @@
+# Required: embedding and extraction (the website itself uses only the standard library)
+python-docx>=1.1.0
+
+# Optional: the Pages preview. Also needs LibreOffice installed (soffice).
+numpy>=1.26.0
+Pillow>=10.0.0
+PyMuPDF>=1.23.0
+
+# Optional: desktop window instead of the browser (python main.py --desktop)
+# pywebview>=5.0

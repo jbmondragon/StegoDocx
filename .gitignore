@@ -1,0 +1,12 @@
+prompt.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# LaTeX / editor leftovers
+texput.log
+.vscode/
+.idea/

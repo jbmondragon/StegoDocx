@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fafafa">
+<title>StegoDocx</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<script>
+  (() => {
+    let mode = null; try { mode = localStorage.getItem('stegodocx-theme'); } catch {}
+    if (!mode) mode = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-color-mode', mode);
+  })();
+</script>
+<style>
+:root, [data-color-mode="light"] {
+  --bg: #fafafa; --bg-subtle: #f3f3f3; --bg-hover: #ebebeb;
+  --border: #dedede; --border-muted: #e9e9e9; --border-strong: #8f8f8f;
+  --fg: #0d0d0d; --fg-muted: #5f5f5f;
+  --btn-primary-bg: #0d0d0d; --btn-primary-fg: #fafafa; --btn-primary-hover: #2b2b2b;
+  --grid: #dcdcdc;
+  --focus: #0d0d0d;
+  color-scheme: light;
+}
+[data-color-mode="dark"] {
+  --bg: #0d0d0d; --bg-subtle: #121212; --bg-hover: #1b1b1b;
+  --border: #2b2b2b; --border-muted: #202020; --border-strong: #6b6b6b;
+  --fg: #fafafa; --fg-muted: #a1a1a1;
+  --btn-primary-bg: #fafafa; --btn-primary-fg: #0d0d0d; --btn-primary-hover: #d9d9d9;
+  --grid: #2e2e2e;
+  --focus: #fafafa;
+  color-scheme: dark;
+}
+:root {
+  --gutter: clamp(12px, 4vw, 24px);
+  --pad: clamp(14px, 3vw, 20px);
+  --control-h: 38px;
+  --header-h: 60px;
+  --cell: 40px;
+}
+html { font-size: 87.5%; }
+@media (max-width: 1099px) { html { font-size: 93.75%; } }
+@media (max-width: 599px)  { html { font-size: 100%; } }
+@media (min-width: 1400px) { html { font-size: clamp(0.875rem, 0.42vw + 0.5125rem, 1rem); } }
+@media (pointer: coarse) and (min-width: 1100px) { html { font-size: clamp(0.9375rem, 0.42vw + 0.5125rem, 1rem); } }
+:root {
+  --fs-xs: 0.786rem;
+  --fs-sm: 0.857rem;
+  --fs-md: 0.929rem;
+  --fs-lg: 1.071rem;
+  --fs-xl: 1.143rem;
+  --fs-hero: clamp(1.9rem, 1.1rem + 2.6vw, 3.1rem);
+}
+
+@media (pointer: coarse) { :root { --control-h: 44px; } }
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; position: relative; overflow-x: hidden;
+  font: 1rem/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.006em; -webkit-font-smoothing: antialiased;
+  transition: background-color .15s, color .15s;
+}
+.container {
+  width: 100%; max-width: 760px; margin: 0 auto;
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+}
+
+.deco { position: fixed; z-index: 0; pointer-events: none; color: var(--grid); line-height: 0; }
+.deco svg { display: block; }
+.deco-tl { top: var(--header-h); left: 0;
+  -webkit-mask-image: linear-gradient(135deg, #000 35%, transparent 85%); mask-image: linear-gradient(135deg, #000 35%, transparent 85%); }
+.deco-br { bottom: 0; right: 0;
+  -webkit-mask-image: linear-gradient(315deg, #000 35%, transparent 85%); mask-image: linear-gradient(315deg, #000 35%, transparent 85%); }
+@media (max-width: 900px) { .deco { opacity: .55; } :root { --cell: 30px; } }
+header, main, footer { position: relative; z-index: 1; }
+
+header {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+}
+header .container { display: flex; align-items: center; gap: clamp(10px, 3vw, 28px); height: var(--header-h); }
+.brand { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; }
+.tabs { display: inline-flex; min-width: 0; border: 1px solid var(--border); }
+.tabs button {
+  display: inline-flex; align-items: center; gap: 7px; height: calc(var(--control-h) - 2px);
+  padding: 0 clamp(12px, 2.5vw, 16px); border: 0; border-radius: 0;
+  background: transparent; color: var(--fg-muted); font: inherit; font-weight: 500; white-space: nowrap;
+  cursor: pointer; touch-action: manipulation; transition: background-color .12s, color .12s;
+}
+.tabs button + button { border-left: 1px solid var(--border); }
+.tabs button svg { flex-shrink: 0; }
+.tabs button:hover { color: var(--fg); background: var(--bg-hover); }
+.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
+.theme-btn {
+  margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: var(--control-h); height: var(--control-h);
+  border: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); cursor: pointer;
+  transition: border-color .12s, background-color .12s;
+}
+.theme-btn:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+
+main { flex: 1; padding: clamp(28px, 6vw, 64px) 0 clamp(32px, 7vw, 72px); }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(16px, 3vw, 24px); }
+.hero {
+  grid-column: 1 / -1; margin: 0 0 clamp(4px, 1.5vw, 12px);
+  font-size: var(--fs-hero); font-weight: 600; line-height: 1.08; letter-spacing: -0.04em;
+}
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(16px, 3vw, 24px); align-content: start; }
+@media (min-width: 1100px) {
+  .container { max-width: 1180px; }
+  .workspace { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; }
+  .pages-box { position: sticky; top: calc(var(--header-h) + 24px); }
+  .pages-box .Box-body { max-height: calc(100vh - var(--header-h) - 130px); overflow-y: auto; }
+  .pages-box .pages { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 1400px) {
+  .container { max-width: 1280px; }
+  .workspace { grid-template-columns: minmax(0, 1fr) 420px; }
+}
+
+.Box { background: var(--bg); border: 1px solid var(--border); border-radius: 0; min-width: 0; }
+.Box-header {
+  display: flex; align-items: center; gap: 10px; min-height: 48px;
+  padding: 10px var(--pad); border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted);
+}
+.Box-header .meta { margin-left: auto; font-weight: 500; letter-spacing: .02em; text-transform: none; font-size: var(--fs-sm); }
+.Box-body { padding: var(--pad); }
+.Box-footer { display: flex; justify-content: flex-end; padding: 14px var(--pad); border-top: 1px solid var(--border); }
+
+.pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+.page { margin: 0; }
+.page a {
+  display: block; border: 1px solid var(--border); overflow: hidden; background: #fff; cursor: zoom-in;
+  transition: border-color .12s;
+}
+.page a:hover { border-color: var(--border-strong); }
+.page img { display: block; width: 100%; height: auto; }
+.page figcaption { margin-top: 6px; text-align: center; font-size: var(--fs-sm); color: var(--fg-muted); }
+.pages-note { margin-top: 12px; text-align: center; font-size: var(--fs-sm); color: var(--fg-muted); }
+.seg { display: inline-flex; border: 1px solid var(--border); text-transform: none; letter-spacing: 0; }
+.seg button {
+  height: 26px; padding: 0 12px; border: 0; border-radius: 0; background: transparent;
+  color: var(--fg-muted); font: inherit; font-size: var(--fs-sm); font-weight: 500; cursor: pointer; touch-action: manipulation;
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover:not(:disabled) { color: var(--fg); background: var(--bg-hover); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
+.seg button:disabled { opacity: .4; cursor: not-allowed; }
+@media (pointer: coarse) { .seg button { height: 34px; padding: 0 14px; } }
+
+.field + .field { margin-top: 18px; }
+label, .label { display: block; font-weight: 500; margin-bottom: 8px; }
+select, textarea {
+  width: 100%; font: inherit; color: var(--fg); background: transparent;
+  border: 1px solid var(--border); border-radius: 0; padding: 6px 12px; min-height: var(--control-h); outline: none;
+  transition: border-color .12s;
+}
+select:hover, textarea:hover { border-color: var(--border-strong); }
+select option { background: var(--bg); color: var(--fg); }
+select:focus, textarea:focus, .drop:focus-visible { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+select {
+  appearance: none; cursor: pointer; padding-right: 36px; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6.5 8 10l3.5-3.5' fill='none' stroke='%23888888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+textarea {
+  min-height: clamp(110px, 22vh, 200px); padding: 12px; resize: vertical; line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: var(--fs-md);
+}
+
+.drop {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; min-height: calc(var(--control-h) + 18px);
+  border: 1px dashed var(--border-strong); border-radius: 0; background: transparent; color: var(--fg-muted); cursor: pointer;
+  transition: border-color .12s, background-color .12s, color .12s;
+}
+.drop:hover, .drop.drag { border-color: var(--fg); color: var(--fg); background: var(--bg-subtle); }
+.drop.has-file { border-style: solid; border-color: var(--border); color: var(--fg); }
+.drop .name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drop .act { font-size: var(--fs-sm); white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; flex-shrink: 0; }
+
+.meter { margin-top: 12px; }
+.bar { height: 4px; background: var(--border-muted); overflow: hidden; }
+.bar > span { display: block; height: 100%; width: 0; background: var(--fg); transition: width .2s; }
+.meter-text { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; margin-top: 8px; font-size: var(--fs-sm); color: var(--fg-muted); }
+.meter-text .flag { font-weight: 600; color: var(--fg); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; height: var(--control-h); padding: 0 18px;
+  font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer; touch-action: manipulation;
+  color: var(--fg); background: transparent; border: 1px solid var(--border-strong); border-radius: 0;
+  transition: background-color .12s, border-color .12s;
+}
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--fg); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); border-color: var(--btn-primary-bg); min-width: 132px; font-weight: 600; }
+.btn-primary:hover:not(:disabled) { background: var(--btn-primary-hover); border-color: var(--btn-primary-hover); }
+.btn-sm { height: calc(var(--control-h) - 6px); padding: 0 14px; font-size: var(--fs-sm); flex-shrink: 0; }
+
+.blank { padding: clamp(24px, 6vw, 40px) 16px; text-align: center; color: var(--fg-muted); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.row + * { margin-top: 10px; }
+pre {
+  margin: 0; padding: 14px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 0;
+  white-space: pre-wrap; word-break: break-word; max-height: min(320px, 45vh); overflow: auto;
+  font: var(--fs-md)/1.6 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.outcome { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.outcome strong { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.015em; }
+.outcome .why { flex-basis: 100%; color: var(--fg-muted); font-size: var(--fs-md); overflow-wrap: anywhere; white-space: pre-line; }
+
+footer { border-top: 1px solid var(--border); color: var(--fg-muted); font-size: var(--fs-sm); background: var(--bg); }
+footer .container { padding-top: 18px; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+
+@media (max-width: 600px) {
+  select, textarea { font-size: max(16px, 1rem); }
+  body { line-height: 1.55; }
+  .Box-footer .btn-primary { width: 100%; }
+}
+@media (max-width: 380px) {
+  .brand { font-size: var(--fs-lg); }
+  .tabs button { padding: 0 12px; }
+  .tabs button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .drop { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<div class="deco deco-tl" id="deco-tl" aria-hidden="true"></div>
+<div class="deco deco-br" id="deco-br" aria-hidden="true"></div>
+
+<header>
+  <div class="container">
+    <span class="brand">StegoDocx</span>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="embed" aria-selected="true" title="Hide a message in a document">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7.25" rx="1.5"/><path d="M5.25 7V5a2.75 2.75 0 0 1 5.5 0v2"/></svg>
+        <span>Embed</span>
+      </button>
+      <button role="tab" data-tab="extract" aria-selected="false" title="Recover a message from a document">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7.25" rx="1.5"/><path d="M5.25 7V5a2.75 2.75 0 0 1 5.3-1"/></svg>
+        <span>Extract</span>
+      </button>
+    </nav>
+    <button class="theme-btn" id="theme-toggle" aria-label="Switch light / dark" title="Switch light / dark"></button>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+
+    <section class="workspace" data-panel="embed">
+     <h1 class="hero">Hide a message</h1>
+     <div class="layout">
+      <div class="Box">
+        <div class="Box-body">
+          <div class="field">
+            <label for="embed-method">Method</label>
+            <select id="embed-method" class="method-select"></select>
+          </div>
+          <div class="field">
+            <span class="label">Cover document</span>
+            <div class="drop" id="cover-drop" tabindex="0" role="button"></div>
+            <input type="file" id="cover-file" accept=".docx" class="sr-only" tabindex="-1">
+          </div>
+          <div class="field">
+            <label for="message">Secret message</label>
+            <textarea id="message" spellcheck="false"></textarea>
+            <div class="meter">
+              <div class="bar"><span id="cap-fill"></span></div>
+              <div class="meter-text"><span id="cap-text"></span><span class="flag" id="cap-flag"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="Box-footer"><button class="btn btn-primary" id="embed-btn" disabled>Embed</button></div>
+      </div>
+      <div class="Box">
+        <div class="Box-header">Result</div>
+        <div class="Box-body" id="embed-result"><div class="blank">Nothing embedded yet.</div></div>
+      </div>
+     </div>
+      <aside class="Box pages-box">
+        <div class="Box-header">Pages
+          <div class="seg" id="embed-view" role="group" aria-label="Show the pages of">
+            <button data-view="cover" aria-pressed="true" disabled>Cover</button>
+            <button data-view="stego" aria-pressed="false" disabled>Stego</button>
+          </div>
+          <span class="meta" id="embed-pages-meta"></span></div>
+        <div class="Box-body" id="embed-pages"><div class="blank">No stego document yet.</div></div>
+      </aside>
+    </section>
+
+    <section class="workspace hidden" data-panel="extract">
+     <h1 class="hero">Recover a message</h1>
+     <div class="layout">
+      <div class="Box">
+        <div class="Box-body">
+          <div class="field">
+            <label for="extract-method">Method</label>
+            <select id="extract-method" class="method-select"></select>
+          </div>
+          <div class="field">
+            <span class="label">Stego document</span>
+            <div class="drop" id="stego-drop" tabindex="0" role="button"></div>
+            <input type="file" id="stego-file" accept=".docx" class="sr-only" tabindex="-1">
+          </div>
+        </div>
+        <div class="Box-footer"><button class="btn btn-primary" id="extract-btn" disabled>Extract</button></div>
+      </div>
+      <div class="Box">
+        <div class="Box-header">Result</div>
+        <div class="Box-body" id="extract-result"><div class="blank">Nothing extracted yet.</div></div>
+      </div>
+     </div>
+      <aside class="Box pages-box">
+        <div class="Box-header">Pages <span class="meta" id="extract-pages-meta"></span></div>
+        <div class="Box-body" id="extract-pages"><div class="blank">No document chosen.</div></div>
+      </aside>
+    </section>
+
+  </div>
+</main>
+
+<footer><div class="container">StegoDocx · Text steganography in Word documents</div></footer>
+<script>
+(() => {
+'use strict';
+
+const CONFIG = Object.assign({ mode: 'auto', apiBase: '/api' }, window.STEGO_CONFIG || {});
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const utf8Len = s => new TextEncoder().encode(s).length;
+const fmtNum = n => Number(n).toLocaleString();
+const TOUCH = matchMedia('(hover: none)').matches;
+const fmtSize = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`;
+
+function bufToB64(buf) {
+  const b = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function b64ToBlob(b64, type = DOCX_MIME) {
+  const bin = atob(b64); const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new Blob([u], { type });
+}
+async function filePayload(file) {
+  return { name: file.name, size: file.size, data_b64: bufToB64(await file.arrayBuffer()) };
+}
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function failed(title, reason) {
+  return `<div class="outcome"><strong>${esc(title)}</strong>${reason ? `<div class="why">${esc(reason)}</div>` : ''}</div>`;
+}
+
+const SUN = '<circle cx="8" cy="8" r="3"/><path d="M8 .75v1.5M8 13.75v1.5M.75 8h1.5M13.75 8h1.5M2.9 2.9l1.06 1.06M12.04 12.04l1.06 1.06M2.9 13.1l1.06-1.06M12.04 3.96l1.06-1.06"/>';
+const MOON = '<path d="M13.5 9.5A5.75 5.75 0 0 1 6.5 2.5a5.75 5.75 0 1 0 7 7z"/>';
+function applyTheme(mode) {
+  document.documentElement.setAttribute('data-color-mode', mode);
+  const meta = document.querySelector('meta[name=theme-color]');
+  if (meta) meta.content = mode === 'dark' ? '#0d0d0d' : '#fafafa';
+  $('#theme-toggle').innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${mode === 'dark' ? SUN : MOON}</svg>`;
+  try { localStorage.setItem('stegodocx-theme', mode); } catch {}
+}
+
+const DECO = {
+  tl: { rows: [15, 14, 10, 9, 9, 7, 6, 6, 5, 4, 3, 3, 2, 2, 2, 2, 1, 1], loose: [[15, 3], [4, 10]] },
+  br: { rows: [16, 16, 16, 13, 12, 10, 7, 6, 5, 5, 4, 3, 2, 1, 1], loose: [[16, 6], [11, 9], [14, 8]] },
+};
+function drawDeco() {
+  const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 40;
+  for (const [key, { rows, loose }] of Object.entries(DECO)) {
+    const cells = rows.flatMap((n, r) => Array.from({ length: n }, (_, c) => [c, r])).concat(loose);
+    const w = Math.max(...cells.map(c => c[0])) + 1, h = Math.max(...cells.map(c => c[1])) + 1;
+    const flip = key === 'br';
+    const rects = cells.map(([c, r]) => {
+      const x = (flip ? w - 1 - c : c) * cell, y = (flip ? h - 1 - r : r) * cell;
+      return `<rect x="${x + .5}" y="${y + .5}" width="${cell}" height="${cell}"/>`;
+    }).join('');
+    $(`#deco-${key}`).innerHTML = `<svg width="${w * cell + 1}" height="${h * cell + 1}" fill="none" stroke="currentColor" stroke-width="1">${rects}</svg>`;
+  }
+}
+
+function fileDrop(zone, input, onChange) {
+  let file = null;
+  const render = () => {
+    zone.classList.toggle('has-file', !!file);
+    zone.innerHTML = file
+      ? `<span class="name" title="${esc(file.name)}">${esc(file.name)} · ${fmtSize(file.size)}</span><span class="act">Change</span>`
+      : `<span>${TOUCH ? 'Tap to choose a .docx file' : 'Drop a .docx file here'}</span><span class="act">Browse</span>`;
+  };
+  const set = f => {
+    if (f && !f.name.toLowerCase().endsWith('.docx')) return;
+    file = f; input.value = ''; render(); onChange(f);
+  };
+  zone.onclick = () => input.click();
+  zone.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
+  zone.ondragover = e => { e.preventDefault(); zone.classList.add('drag'); };
+  zone.ondragleave = () => zone.classList.remove('drag');
+  zone.ondrop = e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) set(e.dataTransfer.files[0]); };
+  input.onchange = () => input.files[0] && set(input.files[0]);
+  render();
+}
+
+function PywebviewBackend(api) {
+  const call = async (fn, arg) => {
+    const r = await (arg === undefined ? api[fn]() : api[fn](arg));
+    if (r && r.error) throw new Error(r.error);
+    return r;
+  };
+  return {
+    methods: () => call('list_methods'),
+    capacity: a => call('capacity', a),
+    embed: a => call('embed', a),
+    extract: a => call('extract', a),
+    pages: a => call('pages', a),
+  };
+}
+function HttpBackend(base) {
+  const req = async (path, body) => {
+    const r = await fetch(base + path, body === undefined ? {} : {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    let data = null; try { data = await r.json(); } catch {}
+    if (!r.ok || (data && data.error)) throw new Error((data && data.error) || `HTTP ${r.status}`);
+    return data;
+  };
+  return {
+    methods: () => req('/methods'),
+    capacity: a => req('/capacity', a),
+    embed: a => req('/embed', a),
+    extract: a => req('/extract', a),
+    pages: a => req('/pages', a),
+  };
+}
+function waitForPywebview(timeout) {
+  return new Promise(resolve => {
+    if (window.pywebview && window.pywebview.api) return resolve(window.pywebview.api);
+    const t = setTimeout(() => resolve(null), timeout);
+    window.addEventListener('pywebviewready', () => { clearTimeout(t); resolve(window.pywebview.api); }, { once: true });
+  });
+}
+async function detectBackend() {
+  if (CONFIG.mode !== 'http') {
+    const api = await waitForPywebview(CONFIG.mode === 'pywebview' ? 8000 : 500);
+    if (api) return PywebviewBackend(api);
+  }
+  return HttpBackend(CONFIG.apiBase.replace(/\/$/, ''));
+}
+
+const state = { backend: null, cover: null, capacity: null, embedBusy: false, stego: null };
+
+const pagesRun = { embed: 0, extract: 0 };
+function resetPages(tab, text) {
+  pagesRun[tab]++;
+  $(`#${tab}-pages-meta`).textContent = '';
+  $(`#${tab}-pages`).innerHTML = `<div class="blank">${esc(text)}</div>`;
+}
+const newDoc = payload => ({ payload, promise: null });
+function pagesOf(doc) {
+  if (!doc.promise) {
+    doc.promise = state.backend.pages({ file: doc.payload });
+    doc.promise.catch(() => { doc.promise = null; });
+  }
+  return doc.promise;
+}
+async function showPages(tab, doc) {
+  const run = ++pagesRun[tab], body = $(`#${tab}-pages`), meta = $(`#${tab}-pages-meta`);
+  meta.textContent = '';
+  body.innerHTML = '<div class="blank">Rendering pages…</div>';
+  try {
+    const res = await pagesOf(doc);
+    if (run !== pagesRun[tab]) return;
+    meta.textContent = res.total === 1 ? '1 page' : `${fmtNum(res.total)} pages`;
+    body.innerHTML = `<div class="pages">${res.pages.map((b64, i) => `
+        <figure class="page"><a href="#" data-page="${i}" title="Open page ${i + 1}">
+          <img src="data:image/png;base64,${b64}" alt="Page ${i + 1}" loading="lazy"></a>
+          <figcaption>${i + 1}</figcaption></figure>`).join('')}</div>` +
+      (res.total > res.pages.length ? `<div class="pages-note">First ${res.pages.length} of ${fmtNum(res.total)} pages</div>` : '');
+    body.querySelectorAll('[data-page]').forEach(a => a.onclick = e => {
+      e.preventDefault();
+      const url = URL.createObjectURL(b64ToBlob(res.pages[+a.dataset.page], 'image/png'));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    });
+  } catch (err) {
+    if (run !== pagesRun[tab]) return;
+    body.innerHTML = failed('Preview unavailable', err.message);
+  }
+}
+
+const embedDocs = { view: 'cover', cover: null, stego: null };
+function setEmbedView(view) {
+  embedDocs.view = view;
+  $$('#embed-view button').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.view === view));
+    b.disabled = !embedDocs[b.dataset.view];
+  });
+  const doc = embedDocs[view];
+  if (doc) showPages('embed', doc);
+  else resetPages('embed', view === 'cover' ? 'No cover chosen.' : 'No stego document yet.');
+}
+
+async function refreshCapacity() {
+  state.capacity = null;
+  if (state.cover && state.backend) {
+    $('#cap-text').textContent = 'Checking capacity…';
+    try {
+      state.capacity = await state.backend.capacity({ method: $('#embed-method').value, cover: await filePayload(state.cover) });
+    } catch { state.capacity = null; }
+  }
+  updateEmbed();
+}
+function updateEmbed() {
+  const msg = $('#message').value, bytes = utf8Len(msg);
+  let over = false, pct = 0, flag = '';
+  if (state.capacity && state.capacity.capacity_bytes != null) {
+    const cap = state.capacity.capacity_bytes, approx = !!state.capacity.approximate;
+    const exceeds = bytes > cap;
+    over = exceeds && !approx;
+    pct = cap ? Math.min(100, bytes / cap * 100) : (bytes ? 100 : 0);
+    $('#cap-text').textContent = `${fmtNum(bytes)} / ${approx ? '≈ ' : ''}${fmtNum(cap)} bytes`;
+    flag = over ? 'Too long' : exceeds ? 'May not fit' : `${Math.round(pct)}%`;
+  } else {
+    $('#cap-text').textContent = state.cover ? `${fmtNum(bytes)} bytes` : `${fmtNum(bytes)} bytes · choose a cover`;
+  }
+  $('#cap-fill').style.width = pct + '%';
+  $('#cap-flag').textContent = flag;
+  $('#embed-btn').disabled = state.embedBusy || !state.cover || !msg || over || !$('#embed-method').value;
+}
+async function doEmbed() {
+  const btn = $('#embed-btn'), out = $('#embed-result');
+  if (btn.disabled) return;
+  state.embedBusy = true; btn.textContent = 'Embedding…'; updateEmbed();
+  try {
+    const res = await state.backend.embed({
+      method: $('#embed-method').value, cover: await filePayload(state.cover), message: $('#message').value,
+    });
+    const blob = b64ToBlob(res.file.data_b64);
+    out.innerHTML = `<div class="outcome"><strong>Message embedded successfully</strong>
+      <button class="btn btn-sm" id="download-stego">Download</button></div>`;
+    $('#download-stego').onclick = () => download(blob, res.file.name);
+    embedDocs.stego = newDoc({ name: res.file.name, data_b64: res.file.data_b64 });
+    setEmbedView('stego');
+  } catch (err) {
+    out.innerHTML = failed('Embedding failed', err.message);
+    embedDocs.stego = null;
+    setEmbedView('cover');
+  } finally {
+    state.embedBusy = false; btn.textContent = 'Embed'; updateEmbed();
+  }
+}
+
+async function doExtract() {
+  const btn = $('#extract-btn'), out = $('#extract-result');
+  if (!state.stego) return;
+  btn.disabled = true; btn.textContent = 'Extracting…';
+  try {
+    const res = await state.backend.extract({ method: $('#extract-method').value, stego: await filePayload(state.stego) });
+    out.innerHTML = `<div class="row"><span class="label" style="margin:0">Message</span>
+      <button class="btn btn-sm" id="copy-msg">Copy</button></div>
+      <pre>${esc(res.message)}</pre>`;
+    $('#copy-msg').onclick = async e => {
+      try { await navigator.clipboard.writeText(res.message); e.target.textContent = 'Copied'; }
+      catch { e.target.textContent = 'Copy failed'; }
+    };
+  } catch (err) {
+    out.innerHTML = failed('Extraction failed', err.message);
+  } finally {
+    btn.textContent = 'Extract'; btn.disabled = !state.stego;
+  }
+}
+
+function selectTab(name) {
+  $$('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  $$('[data-panel]').forEach(p => p.classList.toggle('hidden', p.dataset.panel !== name));
+}
+
+async function init() {
+  drawDeco();
+  matchMedia('(max-width: 900px)').addEventListener('change', drawDeco);
+  applyTheme(document.documentElement.getAttribute('data-color-mode'));
+  $('#theme-toggle').onclick = () =>
+    applyTheme(document.documentElement.getAttribute('data-color-mode') === 'dark' ? 'light' : 'dark');
+  $$('.tabs button').forEach(b => b.onclick = () => selectTab(b.dataset.tab));
+
+  fileDrop($('#cover-drop'), $('#cover-file'), async f => {
+    state.cover = f; refreshCapacity();
+    embedDocs.cover = f ? newDoc(await filePayload(f)) : null;
+    embedDocs.stego = null;
+    setEmbedView('cover');
+  });
+  $$('#embed-view button').forEach(b => b.onclick = () => setEmbedView(b.dataset.view));
+  fileDrop($('#stego-drop'), $('#stego-file'), async f => {
+    state.stego = f; $('#extract-btn').disabled = !f;
+    if (f) showPages('extract', newDoc(await filePayload(f))); else resetPages('extract', 'No document chosen.');
+  });
+  $('#message').addEventListener('input', updateEmbed);
+  $('#embed-btn').onclick = doEmbed;
+  $('#extract-btn').onclick = doExtract;
+  $('#embed-method').onchange = refreshCapacity;
+  updateEmbed();
+
+  state.backend = await detectBackend();
+  try {
+    const methods = await state.backend.methods();
+    $$('.method-select').forEach(sel => {
+      sel.innerHTML = methods.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+    });
+  } catch (err) {
+    const msg = location.protocol === 'file:'
+      ? 'Start the server with "python main.py" and open http://localhost:5000.'
+      : `Could not reach the server: ${err.message}`;
+    $('#embed-result').innerHTML = failed('Server not reachable', msg);
+  }
+  updateEmbed();
+}
+
+document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+})();
+</script>
+</body>
+</html>
