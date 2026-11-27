@@ -1,3 +1,5 @@
+# Utilities for walking a python-docx Document in reading order and for splitting multi-character runs into one run per character. 
+# implementations of different text steganographic methods depend on these functions
 
 from copy import deepcopy
 
@@ -7,6 +9,7 @@ from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 
+# ------------------------------------------------------------------------------------------
 
 def iter_block_items(parent):
     if isinstance(parent, DocumentType):
@@ -23,6 +26,9 @@ def iter_block_items(parent):
             table = Table(child, parent)
             yield table
 
+# ------------------------------------------------------------------------------------------
+# Yield all paragraphs in document reading order, including paragraphs inside tables. 
+# This is useful for text steganography, where we want to process all visible text in the document.
 def iter_paragraphs(parent):
     for block in iter_block_items(parent):
         if isinstance(block, Paragraph):
@@ -32,6 +38,7 @@ def iter_paragraphs(parent):
                 for cell in row.cells:
                     yield from iter_paragraphs(cell)
 
+# ------------------------------------------------------------------------------------------
 def iter_unique_paragraphs(parent):
     seen = set()
     for paragraph in iter_paragraphs(parent):
@@ -39,6 +46,7 @@ def iter_unique_paragraphs(parent):
             seen.add(paragraph._p)
             yield paragraph
 
+# ------------------------------------------------------------------------------------------
 def document_plain_text(document) -> str:
     texts = {}
     parts = []
@@ -49,7 +57,7 @@ def document_plain_text(document) -> str:
         parts.append(text)
     return "\n".join(parts)
 
-
+# ------------------------------------------------------------------------------------------
 def split_text_runs(paragraph: Paragraph):
     for run in list(paragraph.runs):
         text = run.text
@@ -73,7 +81,7 @@ def split_text_runs(paragraph: Paragraph):
 
         original.getparent().remove(original)
 
-
+# ------------------------------------------------------------------------------------------
 def normalize_runs_for_embedding(document):
     for paragraph in iter_paragraphs(document):
         for run in paragraph.runs:
@@ -86,6 +94,7 @@ def normalize_runs_for_embedding(document):
             if color_element is not None:
                 run._r.rPr.remove(color_element)
 
+# ------------------------------------------------------------------------------------------
 def character_runs(document):
     for paragraph in iter_paragraphs(document):
         split_text_runs(paragraph)
